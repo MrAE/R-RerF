@@ -22,22 +22,31 @@ p <- ncol(mnist$Xtrain)
 d <- ceiling(sqrt(p))
 iw <- sqrt(p)
 ih <- iw
-patch.min <- 1L
-patch.max <- 5L
-pmin.max <- expand.grid(1:4, 2:5)
-pmin.max <- pmin.max[pmin.max$Var1 < pmin.max$Var2,]
+sq <- 2L:9L
+p.min <- 2L:5L
+p.max <- 2L:5L
+
+tmp <- expand.grid(1L:8L, 2L:8L)
+rectMM <- tmp[tmp$Var1 < tmp$Var2,]
 
 opt.rf <- lapply(1:28, function(d) list(p, d, "rf"))
 opt.poisson <- lapply(seq(0,5/p, length = 5)[-1], function(lam) list(p, d, "poisson", lambda = lam))
-opt.image.patch <- lapply(1:nrow(pmin.max), 
+
+opt.image.squares <- lapply(1:length(sq), 
 			  function(i) { 
 				       list(p, d, "image-patch", 
 					    iw, ih, 
-					    patch.min = pmin.max[i, 1], 
-					    patch.max = pmin.max[i, 2]) })
+					    patch.min = sq[i], 
+					    patch.max = sq[i]) })
 
-opt.list <- c(opt.rf, opt.poisson, opt.image.patch)
-#opt.list <- c(opt.poisson)
+opt.image.rect <- lapply(1:nrow(rectMM), 
+			  function(i) { 
+				       list(p, d, "image-patch", 
+					    iw, ih, 
+					    patch.min = rectMM[i,1], 
+					    patch.max = rectMM[i,2]) })
+
+opt.list <- c(opt.rf, opt.poisson, opt.image.squares, opt.image.rect)
 length(opt.list)
 
 run1 <- foreach(oi = opt.list) %dopar% {
@@ -53,7 +62,7 @@ df1 <- data.frame(x = c(1:length(opt.rf),1:length(opt.poisson),1:length(opt.imag
 
 require(ggplot2)
 pdf("errors_with_types2.pdf")
-show(ggplot(data = df1, aes(x = x, y = y, color = typ)) + geom_point() + scale_y_log10())
+show(ggplot(data = df1, aes(x = x, y = y, color = typ)) + geom_point())
 dev.off()
 
 pdf("tmp.pdf")
