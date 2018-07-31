@@ -166,7 +166,7 @@ function(mat.options) {
       start.idx <- end.idx + 1L
     }
     # random.matrix <- cbind(nz.rows, nz.cols, sample(c(-1L,1L), nnz, replace = T))
-    random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
+    random.matrix <- cbind(nz.rows, nz.cols, weight = rep(1L, nnz))
   } else if (method == "image-patch-rectangles") {
     iw <- mat.options$iw # image width
     ih <- mat.options$ih # image height
@@ -189,34 +189,44 @@ function(mat.options) {
       nz.cols[start.idx:end.idx] <- i
       start.idx <- end.idx + 1L
     }
-    random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
+    random.matrix <- cbind(nz.rows, nz.cols, weight = rep(1L, nnz))
   } else if (method == "image-patch-toroidal") {
-    ###
-    stop("This functionanlity is under construction.")
+
     iw <- mat.options$iw # image width
     ih <- mat.options$ih # image height
-    pw.in <- mat.options$pw # patch height
-    ph.in <- mat.options$ph # patch width
-    #pw <- sample.int(pw.max - pw.min + 1L, 2*d, replace = T) + pw.min - 1L
-    pw <- rep(c(ph.in, pw.in), each = d)
-    sample.height <- ih - pw[1:d] + 1L
-    sample.width <- iw - pw[(d + 1L):(2*d)] + 1L
-    nnz <- sum(pw[1:d]*pw[(d + 1L):(2*d)])
+    p.min <- mat.options$patch.min # patch min
+    p.max <- mat.options$patch.max # patch max
+
+    ## vector of length 2*d pwh[1:d] are the widths
+    ## pwh[(d+1):2d] are the heights
+    pwh <- sample(p.min:p.max, 2*d, replace = TRUE)
+
+    nnz <- sum(pwh[1:d]*pwh[(d + 1L):(2*d)])
     nz.rows <- integer(nnz)
     nz.cols <- integer(nnz)
     start.idx <- 1L
+
     for (i in seq.int(d)) {
-      top.left <- sample.int(sample.height[i]*sample.width[i], 1L)
-      top.left <- floor((top.left - 1L)/sample.height[i])*(ih - sample.height[i]) + top.left
-      # top.left <- floor((top.left - 1L)/sample.height[i]) + top.left
+      top.left <- sample(0:(p-1), 1) 
+      top.row <- sapply(seq.int(pwh[i]) - 1L, 
+                        function(x) (top.left + x * iw) %% p)
+
+      k <- floor(top.row / ih)
+
+      rest.row <- as.integer(sapply(seq.int(pw[i + d] - 1L), 
+                                    function(x) ((top.row  + x) %% ih) + (k * ih),
+                                    simplify = TRUE))
+
       end.idx <- start.idx + pw[i]*pw[i + d] - 1L
-      nz.rows[start.idx:end.idx] <- sapply((1:pw[i + d]) - 1L, function(x) top.left:(top.left + pw[i] - 1L) + x*ih)
+      
+      nz.rows[start.idx:end.idx] <- c(top.row, rest.row) + 1
       nz.cols[start.idx:end.idx] <- i
       start.idx <- end.idx + 1L
     }
-    random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
-    ###
-  }else if (method == "image-control") {
+
+   random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
+   ###
+  } else if (method == "image-control") {
     iw <- mat.options[[4L]] # image width
     ih <- mat.options[[5L]] # image height
     pw.min <- mat.options[[6L]] # minimum patch width
