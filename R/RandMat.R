@@ -197,35 +197,57 @@ function(mat.options) {
     p.min <- mat.options$patch.min # patch min
     p.max <- mat.options$patch.max # patch max
 
-    ## vector of length 2*d pwh[1:d] are the widths
-    ## pwh[(d+1):2d] are the heights
-    pwh <- sample(p.min:p.max, 2*d, replace = TRUE)
+    if(ih == 1 || iw == 1) {
+      pw <- c(sample(p.min:p.max, d, replace = TRUE), rep(1,d))
 
-    nnz <- sum(pwh[1:d]*pwh[(d + 1L):(2*d)])
-    nz.rows <- integer(nnz)
-    nz.cols <- integer(nnz)
-    start.idx <- 1L
+      nnz <- sum(pw[1:d]*pw[(d + 1L):(2*d)])
+      nz.rows <- integer(nnz)
+      nz.cols <- integer(nnz)
+      start.idx <- 1L
+      for (i in seq.int(d)) {
+        top.left <- sample(0:(p-1), 1) 
+        top.row <- sapply(seq.int(pw[i]) - 1L, 
+                          function(x) (top.left + x) %% p)
 
-    for (i in seq.int(d)) {
-      top.left <- sample(0:(p-1), 1) 
-      top.row <- sapply(seq.int(pwh[i]) - 1L, 
-                        function(x) (top.left + x * iw) %% p)
+        end.idx <- start.idx + pw[i] - 1L
+        
+        nz.rows[start.idx:end.idx] <- c(top.row) + 1
+        nz.cols[start.idx:end.idx] <- i
+        start.idx <- end.idx + 1L
+        }
 
-      k <- floor(top.row / ih)
+      random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
+    } else {
+      ## vector of length 2*d pwh[1:d] are the widths
+      ## pwh[(d+1):2d] are the heights
+      pwh <- sample(p.min:p.max, 2*d, replace = TRUE)
 
-      rest.row <- as.integer(sapply(seq.int(pw[i + d] - 1L), 
-                                    function(x) ((top.row  + x) %% ih) + (k * ih),
-                                    simplify = TRUE))
+      nnz <- sum(pwh[1:d]*pwh[(d + 1L):(2*d)])
+      nz.rows <- integer(nnz)
+      nz.cols <- integer(nnz)
+      start.idx <- 1L
 
-      end.idx <- start.idx + pw[i]*pw[i + d] - 1L
-      
-      nz.rows[start.idx:end.idx] <- c(top.row, rest.row) + 1
-      nz.cols[start.idx:end.idx] <- i
-      start.idx <- end.idx + 1L
+      for (i in seq.int(d)) {
+        top.left <- sample(0:(p-1), 1) 
+        top.row <- sapply(seq.int(pwh[i]) - 1L, 
+                          function(x) (top.left + x * iw) %% p)
+
+        k <- floor(top.row / ih)
+
+        rest.row <- as.integer(sapply(seq.int(pw[i + d] - 1L), 
+                                      function(x) ((top.row  + x) %% ih) + (k * ih),
+                                      simplify = TRUE))
+
+        end.idx <- start.idx + pw[i]*pw[i + d] - 1L
+        
+        nz.rows[start.idx:end.idx] <- c(top.row, rest.row) + 1
+        nz.cols[start.idx:end.idx] <- i
+        start.idx <- end.idx + 1L
+      }
+
+      random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
     }
-
-   random.matrix <- cbind(nz.rows, nz.cols, rep(1L, nnz))
-   ###
+  ###
   } else if (method == "image-control") {
     iw <- mat.options[[4L]] # image width
     ih <- mat.options[[5L]] # image height
